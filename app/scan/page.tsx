@@ -60,23 +60,43 @@ function ScanPageContent() {
   const handleStartCamera = async () => {
     if (!scannerRef.current) return;
     
-    setIsProcessing(true); // Temporarily use this for "starting" state
+    setIsProcessing(true);
     setError(null);
+
+    // Timeout watchdog for iOS silent hangs
+    const timeoutId = setTimeout(() => {
+      if (isProcessing && !scannerRef.current?.isScanning) {
+        setIsProcessing(false);
+        setError('相機啟動逾時。請確認系統「設定」>「Safari網站」的相機權限已開啟。');
+      }
+    }, 8000);
 
     try {
       if (typeof window !== 'undefined' && window.isSecureContext === false) {
+        clearTimeout(timeoutId);
         setError('相機功能僅能在 HTTPS 環境使用。');
         setIsProcessing(false);
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        clearTimeout(timeoutId);
         setError('您的裝置不支援相機功能。');
         setIsProcessing(false);
         return;
       }
 
+      // Step 1: Force permission prompt safely using getCameras()
+      const cameras = await Html5Qrcode.getCameras();
+      if (!cameras || cameras.length === 0) {
+        throw new Error("找不到任何相機鏡頭");
+      }
+
+      // Default to the last camera (usually the back camera on phones)
+      const cameraId = cameras[cameras.length - 1].id;
+
+      // Step 2: Start scanner with explicit ID instead of facingMode (more stable on iOS PWA)
       await scannerRef.current.start(
-        { facingMode: "environment" },
+        cameraId,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -132,11 +152,13 @@ function ScanPageContent() {
         },
         () => {}
       );
+      clearTimeout(timeoutId);
       setIsScanning(true);
       setIsProcessing(false);
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error("Camera start error:", err);
-      setError('相機啟動失敗：請點擊允許相機權限');
+      setError('相機啟動失敗，請確認已點擊「允許」或前往系統設定開啟相機權限。');
       setIsProcessing(false);
     }
   };
