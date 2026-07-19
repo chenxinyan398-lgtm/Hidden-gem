@@ -54,12 +54,56 @@ export async function updateContent(contentId: string, formData: FormData) {
     redirect('/auth');
   }
 
+  let finalLat = latitude;
+  let finalLng = longitude;
+
+  // 嘗試自動進行地址轉座標
+  if ((finalLat === null || finalLng === null || isNaN(finalLat) || isNaN(finalLng)) && address) {
+    try {
+      const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      
+      if (googleApiKey) {
+        // 動態取得目前的網域 (解決 localhost 與 Vercel 部署環境差異)
+        const headersList = await import('next/headers').then(m => m.headers());
+        const host = headersList.get('host') || 'localhost:3000';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const currentReferer = `${protocol}://${host}/`;
+
+        // 使用 Google Maps API
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${googleApiKey}`, {
+          headers: {
+            'Referer': currentReferer
+          }
+        });
+        const data = await res.json();
+        if (data.status === 'OK' && data.results.length > 0) {
+          finalLat = data.results[0].geometry.location.lat;
+          finalLng = data.results[0].geometry.location.lng;
+        } else {
+          console.error('Google Maps Geocoding failed:', data.status);
+        }
+      } else {
+        // 備案：使用免費的 OpenStreetMap (Nominatim)
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`, {
+          headers: { 'User-Agent': 'HiddenGemApp/1.0' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData && geoData.length > 0) {
+          finalLat = parseFloat(geoData[0].lat);
+          finalLng = parseFloat(geoData[0].lon);
+        }
+      }
+    } catch (err) {
+      console.error('Geocoding error:', err);
+    }
+  }
+
   const updatePayload: any = {
     title,
     body,
     address,
-    latitude: latitude !== null && !isNaN(latitude) ? latitude : null,
-    longitude: longitude !== null && !isNaN(longitude) ? longitude : null,
+    latitude: finalLat !== null && !isNaN(finalLat) ? finalLat : null,
+    longitude: finalLng !== null && !isNaN(finalLng) ? finalLng : null,
     photos,
     recommendation,
     booking_url,

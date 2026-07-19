@@ -51,6 +51,14 @@ function ScanPageContent() {
 
     const startScanning = async () => {
       try {
+        if (typeof window !== 'undefined' && window.isSecureContext === false) {
+          setError('基於安全性限制，相機功能僅能在 HTTPS 環境或 localhost 使用。如果您使用手機測試，請確保透過 HTTPS 連線。');
+          return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setError('您的裝置或瀏覽器不支援相機功能，請嘗試使用其他瀏覽器。');
+          return;
+        }
         await scanner.start(
           { facingMode: "environment" },
           {
@@ -118,6 +126,7 @@ function ScanPageContent() {
         );
         setIsScanning(true);
       } catch (err) {
+        console.error("Camera start error:", err);
         setError('無法存取相機，請確認已給予存取權限。');
       }
     };

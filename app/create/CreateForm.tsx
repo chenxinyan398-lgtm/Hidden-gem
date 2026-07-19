@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Utensils, MessageSquare } from 'lucide-react';
+import { useFormStatus } from 'react-dom';
+import { MapPin, Utensils, MessageSquare, Loader2 } from 'lucide-react';
 import LocationPicker from './LocationPicker';
 import PhotoInput from './PhotoInput';
 import CulinaryInputs from './CulinaryInputs';
@@ -156,22 +157,32 @@ export default function CreateForm({ errorMessage }: { errorMessage?: string }) 
             開啟後，即便朋友掃描您的 QR Code 亦無法讀取此手帳
           </p>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+        <label className="relative inline-flex items-center cursor-pointer shrink-0 active:scale-95 transition-transform">
           <input type="checkbox" name="is_private" value="true" className="sr-only peer" />
           <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
         </label>
       </div>
 
-      <button
-        type="submit"
-        className={`w-full font-bold py-3.5 rounded-2xl transition-all mt-2 shadow-xl ${
-          selectedType === 'spot'
-            ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-950/40'
-            : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-950/40'
-        }`}
-      >
-        儲存{selectedType === 'spot' ? '📍 私房景點' : '🍳 私房料理'}手帳
-      </button>
+      <SubmitButton selectedType={selectedType} />
     </form>
+  );
+}
+
+function SubmitButton({ selectedType }: { selectedType: 'spot' | 'dish' }) {
+  const { pending } = useFormStatus();
+  
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className={`w-full flex items-center justify-center gap-2 font-bold py-3.5 rounded-2xl transition-all mt-2 shadow-xl active:scale-95 ${
+        selectedType === 'spot'
+          ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-rose-950/40 disabled:bg-rose-500/50'
+          : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-950/40 disabled:bg-emerald-500/50'
+      }`}
+    >
+      {pending && <Loader2 size={18} className="animate-spin" />}
+      {pending ? '正在儲存中...' : `儲存${selectedType === 'spot' ? '📍 私房景點' : '🍳 私房料理'}手帳`}
+    </button>
   );
 }

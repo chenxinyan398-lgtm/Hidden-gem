@@ -27,9 +27,31 @@ export default function PhotoInput({ initialPhotos = [] }: { initialPhotos?: str
     setIsUploading(true);
     const newUrls: string[] = [];
 
+    // 動態載入壓縮套件 (可避免 SSR 錯誤)
+    const imageCompression = (await import('browser-image-compression')).default;
+
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fileExt = file.name.split('.').pop();
+      let file = files[i];
+
+      // 圖片壓縮設定：限制最大 1MB，最長邊 1200px
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+      };
+
+      try {
+        const compressedFile = await imageCompression(file, options);
+        // 使用壓縮後的新檔案
+        file = new File([compressedFile], file.name, {
+          type: compressedFile.type || 'image/jpeg',
+          lastModified: Date.now(),
+        });
+      } catch (error) {
+        console.error('Image compression error:', error);
+      }
+
+      const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
       const filePath = `user_uploads/${fileName}`;
 

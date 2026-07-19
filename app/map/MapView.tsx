@@ -3,9 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
 import { Navigation, MapPin, Utensils, Compass, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
@@ -69,8 +67,15 @@ export default function MapView({ items }: { items: NoteItem[] }) {
           mapRef.current.flyTo([lat, lng], 14);
         }
       },
-      () => {
+      (error) => {
         setIsLocating(false);
+        if (typeof window !== 'undefined' && window.isSecureContext === false) {
+          alert('地圖定位需要 HTTPS 連線才能使用。若您使用手機測試，請確認您的網址為 HTTPS。');
+        } else if (error.code === error.PERMISSION_DENIED) {
+          alert('無法取得您的位置，請確認已在手機或瀏覽器中開啟定位權限。');
+        } else {
+          console.warn('Geolocation error:', error);
+        }
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -97,11 +102,7 @@ export default function MapView({ items }: { items: NoteItem[] }) {
       maxZoom: 19,
     }).addTo(map);
 
-    markersRef.current = (L as any).markerClusterGroup({
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      maxClusterRadius: 40,
-    }).addTo(map);
+    markersRef.current = L.featureGroup().addTo(map);
     mapRef.current = map;
 
     return () => {
