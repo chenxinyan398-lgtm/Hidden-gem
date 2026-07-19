@@ -44,110 +44,111 @@ function ScanPageContent() {
   }, [userIdFromUrl, contentIdFromUrl, tokenFromUrl]);
 
   useEffect(() => {
-    if (userIdFromUrl || contentIdFromUrl || tokenFromUrl) return; // Don't start camera if already processing URL param
+    if (userIdFromUrl || contentIdFromUrl || tokenFromUrl) return;
 
+    // Initialize scanner but don't start automatically
     const scanner = new Html5Qrcode("reader");
     scannerRef.current = scanner;
-
-    const startScanning = async () => {
-      try {
-        if (typeof window !== 'undefined' && window.isSecureContext === false) {
-          setError('基於安全性限制，相機功能僅能在 HTTPS 環境或 localhost 使用。如果您使用手機測試，請確保透過 HTTPS 連線。');
-          return;
-        }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          setError('您的裝置或瀏覽器不支援相機功能，請嘗試使用其他瀏覽器。');
-          return;
-        }
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1,
-          },
-          async (decodedText) => {
-            if (scannerRef.current?.isScanning) {
-              await scannerRef.current.stop();
-              setIsScanning(false);
-            }
-            
-            let extractedContentId: string | null = null;
-            let extractedUserId: string | null = null;
-            let extractedToken: string | null = null;
-
-            // Try URL parsing
-            try {
-              const url = new URL(decodedText);
-              extractedUserId = url.searchParams.get('userId');
-              extractedContentId = url.searchParams.get('contentId');
-              extractedToken = url.searchParams.get('token');
-            } catch {
-              // Not a URL
-            }
-
-            // Try JSON parsing if URL parsing returned nothing
-            if (!extractedUserId && !extractedContentId) {
-              try {
-                const data = JSON.parse(decodedText);
-                if (data.userId) extractedUserId = data.userId;
-                if (data.contentId) extractedContentId = data.contentId;
-              } catch {
-                // Not JSON
-              }
-            }
-
-            if (extractedUserId) {
-              setIsProcessing(true);
-              await grantAccessAndRedirect(extractedUserId, true).catch(e => {
-                setError(e.message || '授權失敗');
-                setIsProcessing(false);
-              });
-            } else if (extractedToken) {
-              setIsProcessing(true);
-              await grantAccessAndRedirect(extractedToken, false, true).catch(e => {
-                setError(e.message || '無效的解鎖條碼或已過期');
-                setIsProcessing(false);
-              });
-            } else if (extractedContentId) {
-              setIsProcessing(true);
-              await grantAccessAndRedirect(extractedContentId, false).catch(e => {
-                setError('授權失敗');
-                setIsProcessing(false);
-              });
-            } else {
-              setError('無效的解鎖 QR Code');
-              setTimeout(() => setError(null), 3000);
-            }
-          },
-          () => {
-            // Ignore parse errors per frame
-          }
-        );
-        setIsScanning(true);
-      } catch (err) {
-        console.error("Camera start error:", err);
-        setError('無法存取相機，請確認已給予存取權限。');
-      }
-    };
-
-    startScanning();
 
     return () => {
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(console.error);
       }
     };
-  }, [userIdFromUrl, contentIdFromUrl]);
+  }, [userIdFromUrl, contentIdFromUrl, tokenFromUrl]);
 
-  if (isProcessing) {
+  const handleStartCamera = async () => {
+    if (!scannerRef.current) return;
+    
+    setIsProcessing(true); // Temporarily use this for "starting" state
+    setError(null);
+
+    try {
+      if (typeof window !== 'undefined' && window.isSecureContext === false) {
+        setError('相機功能僅能在 HTTPS 環境使用。');
+        setIsProcessing(false);
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('您的裝置不支援相機功能。');
+        setIsProcessing(false);
+        return;
+      }
+
+      await scannerRef.current.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+        },
+        async (decodedText) => {
+          if (scannerRef.current?.isScanning) {
+            await scannerRef.current.stop();
+            setIsScanning(false);
+          }
+          
+          let extractedContentId: string | null = null;
+          let extractedUserId: string | null = null;
+          let extractedToken: string | null = null;
+
+          try {
+            const url = new URL(decodedText);
+            extractedUserId = url.searchParams.get('userId');
+            extractedContentId = url.searchParams.get('contentId');
+            extractedToken = url.searchParams.get('token');
+          } catch {}
+
+          if (!extractedUserId && !extractedContentId) {
+            try {
+              const data = JSON.parse(decodedText);
+              if (data.userId) extractedUserId = data.userId;
+              if (data.contentId) extractedContentId = data.contentId;
+            } catch {}
+          }
+
+          if (extractedUserId) {
+            setIsProcessing(true);
+            await grantAccessAndRedirect(extractedUserId, true).catch(e => {
+              setError(e.message || '授權失敗');
+              setIsProcessing(false);
+            });
+          } else if (extractedToken) {
+            setIsProcessing(true);
+            await grantAccessAndRedirect(extractedToken, false, true).catch(e => {
+              setError(e.message || '無效的條碼');
+              setIsProcessing(false);
+            });
+          } else if (extractedContentId) {
+            setIsProcessing(true);
+            await grantAccessAndRedirect(extractedContentId, false).catch(e => {
+              setError('授權失敗');
+              setIsProcessing(false);
+            });
+          } else {
+            setError('無效的解鎖 QR Code');
+            setTimeout(() => setError(null), 3000);
+          }
+        },
+        () => {}
+      );
+      setIsScanning(true);
+      setIsProcessing(false);
+    } catch (err) {
+      console.error("Camera start error:", err);
+      setError('相機啟動失敗：請點擊允許相機權限');
+      setIsProcessing(false);
+    }
+  };
+
+  if (isProcessing && !scannerRef.current?.isScanning && !error) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 animate-bounce">
           <BookOpen size={32} />
         </div>
-        <h2 className="text-xl font-bold text-white mb-1">正在爲您解鎖專屬私房手帳...</h2>
-        <p className="text-xs text-zinc-400">授權成功後將自動載入朋友的筆記庫</p>
+        <h2 className="text-xl font-bold text-white mb-1">正在載入中...</h2>
+        <p className="text-xs text-zinc-400">請稍候</p>
       </div>
     );
   }
@@ -161,26 +162,40 @@ function ScanPageContent() {
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="relative w-full max-w-sm aspect-square bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-3xl overflow-hidden shadow-2xl">
-          <div id="reader" className="w-full h-full" />
+          <div id="reader" className="w-full h-full object-cover" />
           
           {!isScanning && !error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm z-10">
-              <Scan size={32} className="text-zinc-500 animate-pulse mb-3" />
-              <p className="text-sm text-zinc-400 font-medium">正在啟動相機...</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 backdrop-blur-sm z-10 p-6 text-center">
+              <button 
+                onClick={handleStartCamera}
+                className="bg-amber-500 text-amber-950 font-bold py-3 px-6 rounded-2xl flex items-center gap-2 hover:bg-amber-400 active:scale-95 transition-all shadow-lg"
+              >
+                <Scan size={20} />
+                點擊啟動相機
+              </button>
+              <p className="text-xs text-zinc-400 mt-4 font-medium">iOS 系統需要您手動點擊以授權相機權限</p>
             </div>
           )}
 
           {/* Corner markers */}
-          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-400 rounded-tl-2xl m-4 z-20 shadow-lg" />
-          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-400 rounded-tr-2xl m-4 z-20 shadow-lg" />
-          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl-2xl m-4 z-20 shadow-lg" />
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br-2xl m-4 z-20 shadow-lg" />
+          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-amber-400 rounded-tl-2xl m-4 z-20 shadow-lg pointer-events-none" />
+          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-amber-400 rounded-tr-2xl m-4 z-20 shadow-lg pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl-2xl m-4 z-20 shadow-lg pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br-2xl m-4 z-20 shadow-lg pointer-events-none" />
         </div>
 
         {error && (
-          <div className="mt-6 flex items-center gap-2 text-red-400 bg-red-500/10 px-4 py-2.5 rounded-xl border border-red-500/20">
-            <AlertCircle size={18} />
-            <span className="text-sm font-medium">{error}</span>
+          <div className="mt-6 flex flex-col items-center gap-3 w-full max-w-sm">
+            <div className="flex items-center gap-2 text-red-400 bg-red-500/10 px-4 py-2.5 rounded-xl border border-red-500/20 w-full justify-center">
+              <AlertCircle size={18} />
+              <span className="text-sm font-medium">{error}</span>
+            </div>
+            <button 
+              onClick={handleStartCamera}
+              className="bg-zinc-800 text-white font-medium py-2 px-6 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all text-sm w-full"
+            >
+              重新嘗試啟動相機
+            </button>
           </div>
         )}
         
