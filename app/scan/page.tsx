@@ -212,12 +212,69 @@ function ScanPageContent() {
               <AlertCircle size={18} />
               <span className="text-sm font-medium">{error}</span>
             </div>
+            
             <button 
               onClick={handleStartCamera}
               className="bg-zinc-800 text-white font-medium py-2 px-6 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all text-sm w-full"
             >
               重新嘗試啟動相機
             </button>
+
+            {/* Foolproof fallback for iOS PWA: Native Camera File Input */}
+            <label className="bg-emerald-600/90 text-white font-bold py-2 px-6 rounded-xl hover:bg-emerald-500 active:scale-95 transition-all text-sm w-full text-center cursor-pointer flex items-center justify-center gap-2 shadow-lg">
+              <Scan size={16} />
+              使用內建相機拍照解鎖 (保證成功)
+              <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  setIsProcessing(true);
+                  setError(null);
+                  
+                  try {
+                    const result = await scannerRef.current?.scanFile(file, true);
+                    if (!result) throw new Error('無法讀取 QR Code');
+                    
+                    let extractedContentId: string | null = null;
+                    let extractedUserId: string | null = null;
+                    let extractedToken: string | null = null;
+
+                    try {
+                      const url = new URL(result);
+                      extractedUserId = url.searchParams.get('userId');
+                      extractedContentId = url.searchParams.get('contentId');
+                      extractedToken = url.searchParams.get('token');
+                    } catch {}
+
+                    if (!extractedUserId && !extractedContentId) {
+                      try {
+                        const data = JSON.parse(result);
+                        if (data.userId) extractedUserId = data.userId;
+                        if (data.contentId) extractedContentId = data.contentId;
+                      } catch {}
+                    }
+
+                    if (extractedUserId) {
+                      await grantAccessAndRedirect(extractedUserId, true);
+                    } else if (extractedToken) {
+                      await grantAccessAndRedirect(extractedToken, false, true);
+                    } else if (extractedContentId) {
+                      await grantAccessAndRedirect(extractedContentId, false);
+                    } else {
+                      throw new Error('無效的解鎖 QR Code');
+                    }
+                  } catch (err: any) {
+                    setIsProcessing(false);
+                    setError(err.message || '找不到 QR Code，請對準條碼重新拍照。');
+                  }
+                }}
+              />
+            </label>
           </div>
         )}
         
