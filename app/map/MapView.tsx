@@ -182,10 +182,8 @@ export default function MapView({ items }: { items: NoteItem[] }) {
         if (e && e.originalEvent) {
           L.DomEvent.stopPropagation(e as any);
         }
+        // 直接開啟底部手帳卡片，移除地圖 panTo 位移動畫，防止圖標「噴出去」
         setSelectedItem({ ...item });
-        if (mapRef.current) {
-          mapRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
-        }
       });
     });
   }, [items, userPos, radiusKm]);
