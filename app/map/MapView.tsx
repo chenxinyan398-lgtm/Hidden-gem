@@ -156,18 +156,24 @@ export default function MapView({ items }: { items: NoteItem[] }) {
 
       const typeUpper = (item.type || '').toUpperCase();
       const isSpot = typeUpper === 'SPOT';
-      const bgClass = isSpot ? 'bg-rose-500 border-rose-300' : 'bg-emerald-500 border-emerald-300';
+      const bgClass = isSpot
+        ? 'bg-rose-500 border-rose-300 shadow-rose-950/50'
+        : 'bg-emerald-500 border-emerald-300 shadow-emerald-950/50';
       const iconSymbol = isSpot ? '📍' : '🍳';
 
+      // 48px x 48px 大熱區尺寸，並移除動態變形以防止 Leaflet 誤判為滑動拖曳
       const pinIcon = L.divIcon({
         className: 'item-pin-marker-wrapper',
         html: `
-          <div class="marker-pin-inner flex items-center justify-center ${bgClass} text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-2xl border-2 transition-transform hover:scale-110 active:scale-95">
-            <span>${iconSymbol}</span>
+          <div class="w-12 h-12 flex items-center justify-center cursor-pointer">
+            <div class="flex items-center gap-1.5 ${bgClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-2xl border-2 shrink-0 select-none pointer-events-none">
+              <span>${iconSymbol}</span>
+              <span class="max-w-[80px] truncate">${item.title || '私房手帳'}</span>
+            </div>
           </div>
         `,
-        iconSize: [36, 30],
-        iconAnchor: [18, 15],
+        iconSize: [48, 48],
+        iconAnchor: [24, 24],
       });
 
       const marker = L.marker([lat, lng], { icon: pinIcon }).addTo(markersRef.current!);
@@ -292,8 +298,7 @@ export default function MapView({ items }: { items: NoteItem[] }) {
                     <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
                       🍳 料理
                     </span>
-                  )
-                  }
+                  )}
                   {selectedItem.price_range && (
                     <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
                       {selectedItem.price_range}
