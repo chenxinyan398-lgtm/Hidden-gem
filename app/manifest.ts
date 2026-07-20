@@ -22,5 +22,15 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
     ],
+    // PWA Web Share Target 整合：讓手機系統「分享到...」選單出現本 App
+    share_target: {
+      action: '/create',
+      method: 'GET',
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+      },
+    },
   };
 }
