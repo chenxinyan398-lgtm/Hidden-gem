@@ -161,18 +161,18 @@ export default function MapView({ items }: { items: NoteItem[] }) {
         : 'bg-emerald-500 border-emerald-300 shadow-emerald-950/50';
       const iconSymbol = isSpot ? '📍' : '🍳';
 
-      // 48px x 48px 大熱區尺寸，並移除動態變形以防止 Leaflet 誤判為滑動拖曳
+      // 180px x 48px 完整包覆「圖標 + 右側名稱」的超大點擊熱區
       const pinIcon = L.divIcon({
         className: 'item-pin-marker-wrapper',
         html: `
-          <div class="w-12 h-12 flex items-center justify-center cursor-pointer">
+          <div class="w-[180px] h-[48px] flex items-center justify-start cursor-pointer">
             <div class="flex items-center gap-1.5 ${bgClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-2xl border-2 shrink-0 select-none pointer-events-none">
               <span>${iconSymbol}</span>
-              <span class="max-w-[80px] truncate">${item.title || '私房手帳'}</span>
+              <span class="max-w-[100px] truncate">${item.title || '私房手帳'}</span>
             </div>
           </div>
         `,
-        iconSize: [48, 48],
+        iconSize: [180, 48],
         iconAnchor: [24, 24],
       });
 
