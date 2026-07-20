@@ -41,3 +41,14 @@ label.cursor-pointer:active {
   transform: scale(0.94) translateY(2px) !important;
   filter: brightness(0.88) contrast(1.05) !important;
 }
+
+/* 排除 Leaflet 地圖標記圖示，防止 transform 被全域按鈕按壓覆蓋而飛至左上角 */
+.leaflet-marker-icon,
+.leaflet-marker-icon * {
+  touch-action: auto !important;
+}
+.leaflet-marker-icon:active,
+.leaflet-marker-icon *:active {
+  transform: none !important;
+  filter: none !important;
+}

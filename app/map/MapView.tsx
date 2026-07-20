@@ -102,6 +102,11 @@ export default function MapView({ items }: { items: NoteItem[] }) {
       maxZoom: 19,
     }).addTo(map);
 
+    // 點擊地圖空白處自動收起已選取的筆記卡片
+    map.on('click', () => {
+      setSelectedItem(null);
+    });
+
     markersRef.current = L.featureGroup().addTo(map);
     mapRef.current = map;
 
@@ -139,41 +144,41 @@ export default function MapView({ items }: { items: NoteItem[] }) {
     // Items Markers
     items.forEach((item) => {
       if (item.latitude == null || item.longitude == null) return;
+      const lat = Number(item.latitude);
+      const lng = Number(item.longitude);
+      if (isNaN(lat) || isNaN(lng)) return;
 
       // Distance check
       if (userPos && radiusKm != null) {
-        const distMeters = getDistanceInMeters(
-          userPos.lat,
-          userPos.lng,
-          item.latitude,
-          item.longitude
-        );
+        const distMeters = getDistanceInMeters(userPos.lat, userPos.lng, lat, lng);
         if (distMeters > radiusKm * 1000) return;
       }
 
-      const isSpot = item.type?.toUpperCase() === 'SPOT';
-      const bgClass = isSpot ? 'bg-rose-500' : 'bg-emerald-500';
+      const typeUpper = (item.type || '').toUpperCase();
+      const isSpot = typeUpper === 'SPOT';
+      const bgClass = isSpot ? 'bg-rose-500 border-rose-300' : 'bg-emerald-500 border-emerald-300';
       const iconSymbol = isSpot ? '📍' : '🍳';
 
       const pinIcon = L.divIcon({
-        className: 'item-pin-marker',
+        className: 'item-pin-marker-wrapper',
         html: `
-          <div class="flex items-center justify-center ${bgClass} text-white text-xs font-bold px-2 py-1 rounded-full shadow-xl border-2 border-zinc-950 transition-transform hover:scale-110">
+          <div class="marker-pin-inner flex items-center justify-center ${bgClass} text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-2xl border-2 transition-transform hover:scale-110 active:scale-95">
             <span>${iconSymbol}</span>
           </div>
         `,
-        iconSize: [32, 28],
-        iconAnchor: [16, 14],
+        iconSize: [36, 30],
+        iconAnchor: [18, 15],
       });
 
-      const marker = L.marker([item.latitude, item.longitude], { icon: pinIcon }).addTo(
-        markersRef.current!
-      );
+      const marker = L.marker([lat, lng], { icon: pinIcon }).addTo(markersRef.current!);
 
-      marker.on('click', () => {
-        setSelectedItem(item);
+      marker.on('click', (e: L.LeafletMouseEvent) => {
+        if (e && e.originalEvent) {
+          L.DomEvent.stopPropagation(e as any);
+        }
+        setSelectedItem({ ...item });
         if (mapRef.current) {
-          mapRef.current.panTo([item.latitude!, item.longitude!]);
+          mapRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
         }
       });
     });
@@ -244,7 +249,10 @@ export default function MapView({ items }: { items: NoteItem[] }) {
 
       {/* Selected Item Snapshot Card Overlay */}
       {selectedItem && (
-        <div className="absolute bottom-20 left-4 right-4 z-30 animate-in slide-in-from-bottom-5 fade-in duration-200">
+        <div
+          key={selectedItem.id}
+          className="absolute bottom-20 left-4 right-4 z-30 animate-in slide-in-from-bottom-5 fade-in duration-200"
+        >
           <div className="bg-zinc-900/95 border border-amber-500/30 backdrop-blur-md rounded-3xl p-4 shadow-2xl relative">
             <button
               onClick={() => setSelectedItem(null)}
@@ -284,7 +292,8 @@ export default function MapView({ items }: { items: NoteItem[] }) {
                     <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
                       🍳 料理
                     </span>
-                  )}
+                  )
+                  }
                   {selectedItem.price_range && (
                     <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md">
                       {selectedItem.price_range}
@@ -304,8 +313,8 @@ export default function MapView({ items }: { items: NoteItem[] }) {
                       getDistanceInMeters(
                         userPos.lat,
                         userPos.lng,
-                        selectedItem.latitude,
-                        selectedItem.longitude
+                        Number(selectedItem.latitude),
+                        Number(selectedItem.longitude)
                       )
                     )}
                   </p>
