@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2, Link2, AlertCircle } from 'lucide-react';
+import { Sparkles, Loader2, Link2, AlertCircle, ClipboardPaste } from 'lucide-react';
 
 interface ImportedData {
   title: string;
@@ -85,6 +85,31 @@ export default function IgImportSection({ initialUrl = '', onImportSuccess }: Ig
     }
   };
 
+  // 自動讀取剪貼簿功能的特快按鈕
+  const handleReadClipboard = async () => {
+    try {
+      if (!navigator.clipboard) {
+        throw new Error('您的瀏覽器不支援自動讀取剪貼簿，請手動貼上連結');
+      }
+      const clipText = await navigator.clipboard.readText();
+      if (clipText && clipText.includes('instagram.com')) {
+        setUrl(clipText);
+        setShowInput(true);
+        handleImport(clipText);
+      } else if (clipText && clipText.startsWith('http')) {
+        setUrl(clipText);
+        setShowInput(true);
+        handleImport(clipText);
+      } else {
+        setError('剪貼簿中未發現 IG 連結，請先在 IG 點擊「複製連結」');
+        setShowInput(true);
+      }
+    } catch (err: any) {
+      setError('無法讀取剪貼簿，請點擊「貼上連結」手動貼上');
+      setShowInput(true);
+    }
+  };
+
   // 當使用者透過手機系統選單「分享至本 App」開啟頁面時，自動觸發 AI 解析！
   useEffect(() => {
     if (initialUrl && !hasAutoTriggered.current) {
@@ -100,7 +125,7 @@ export default function IgImportSection({ initialUrl = '', onImportSuccess }: Ig
       {/* Glow background accent */}
       <div className="absolute -top-10 -right-10 w-32 h-32 bg-pink-500/10 rounded-full blur-2xl pointer-events-none" />
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className="p-2 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white shadow-md">
             <InstagramIcon size={18} />
@@ -109,21 +134,34 @@ export default function IgImportSection({ initialUrl = '', onImportSuccess }: Ig
             <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
               <span>IG 貼文智慧匯入</span>
               <span className="text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded-full font-semibold">
-                Share Target
+                AI 2.0
               </span>
             </h3>
-            <p className="text-[11px] text-zinc-400">貼上 IG 網址或從 IG 點選「分享至私房手帳」</p>
+            <p className="text-[11px] text-zinc-400">複製 IG 連結後即可快速生成筆記</p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowInput(!showInput)}
-          className="text-xs font-bold px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 transition-all active:scale-95 flex items-center gap-1 shrink-0"
-        >
-          <Sparkles size={13} className="text-amber-300 animate-pulse" />
-          {showInput ? '收起' : '⚡ 貼上連結'}
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* 一鍵讀取剪貼簿快捷鈕 */}
+          <button
+            type="button"
+            onClick={handleReadClipboard}
+            className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 text-amber-300 border border-amber-500/30 transition-all active:scale-95 flex items-center gap-1"
+            title="一鍵讀取剪貼簿連結"
+          >
+            <ClipboardPaste size={13} />
+            <span>一鍵貼上</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowInput(!showInput)}
+            className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 transition-all active:scale-95 flex items-center gap-1"
+          >
+            <Sparkles size={13} className="text-amber-300 animate-pulse" />
+            {showInput ? '收起' : '手動輸入'}
+          </button>
+        </div>
       </div>
 
       {showInput && (
