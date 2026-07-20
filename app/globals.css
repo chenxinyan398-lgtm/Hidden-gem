@@ -19,11 +19,11 @@ body {
 }
 
 /* 全域實體按鍵觸感體驗 (Physical Tactile Feedback) */
-button,
-a,
+/* 嚴格排除 Leaflet 地圖元素，保護地圖 Marker 的 translate3d 原生地圖定位 */
+button:not(.leaflet-marker-icon):not(.leaflet-marker-icon *),
+a:not(.leaflet-marker-icon):not(.leaflet-marker-icon *),
 input[type="submit"],
 input[type="button"],
-[role="button"],
 label.cursor-pointer {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -31,24 +31,12 @@ label.cursor-pointer {
   user-select: none;
 }
 
-/* 按下時的實體壓下感 (Physical Press Down Shift & Inner Shadow) */
-button:active,
-a:active,
+/* 按下時的實體壓下感 */
+button:not(.leaflet-marker-icon):not(.leaflet-marker-icon *):active,
+a:not(.leaflet-marker-icon):not(.leaflet-marker-icon *):active,
 input[type="submit"]:active,
 input[type="button"]:active,
-[role="button"]:active,
 label.cursor-pointer:active {
-  transform: scale(0.94) translateY(2px) !important;
-  filter: brightness(0.88) contrast(1.05) !important;
-}
-
-/* 排除 Leaflet 地圖標記圖示，防止 transform 被全域按鈕按壓覆蓋而飛至左上角 */
-.leaflet-marker-icon,
-.leaflet-marker-icon * {
-  touch-action: auto !important;
-}
-.leaflet-marker-icon:active,
-.leaflet-marker-icon *:active {
-  transform: none !important;
-  filter: none !important;
+  transform: scale(0.94) translateY(2px);
+  filter: brightness(0.88) contrast(1.05);
 }
